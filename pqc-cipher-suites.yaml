@@ -1,0 +1,99 @@
+id: pqc-cipher-suites-detection
+
+info:
+  name: Post-Quantum Cryptography Cipher Suites Detection
+  author: Patrick Roy (waps11@github)
+  severity: info
+  description: |
+    Détecte et extrait les suites cryptographiques post-quantiques supportées par les serveurs TLS.
+    Ce template identifie les algorithmes résistants aux ordinateurs quantiques comme Kyber, Dilithium, etc.
+  reference:
+    - https://www.nist.gov/news-events/news/2022/07/nist-announces-first-four-quantum-resistant-cryptographic-algorithms
+    - https://csrc.nist.gov/projects/post-quantum-cryptography
+  tags: tls,ssl,pqc,post-quantum,cryptography,security
+
+ssl:
+  - address: "{{Host}}:{{Port}}"
+    
+    matchers-condition: or
+    matchers:
+      - type: word
+        part: cipher
+        words:
+          # Kyber - Key Encapsulation Mechanism
+          - "TLS_AES_128_GCM_SHA256_KYBER512"
+          - "TLS_AES_256_GCM_SHA384_KYBER768"
+          - "TLS_CHACHA20_POLY1305_SHA256_KYBER1024"
+          - "KYBER512"
+          - "KYBER768"
+          - "KYBER1024"
+          # NTRU - Alternative KEM
+          - "NTRU_HPS_2048_509"
+          - "NTRU_HPS_2048_677"
+          - "NTRU_HPS_4096_821"
+          - "NTRU_HRSS_701"
+          # Classic McEliece
+          - "CLASSIC_MCELIECE"
+          # SABER
+          - "SABER"
+          - "LIGHTSABER"
+          - "FIRESABER"
+          # Dilithium - Signatures
+          - "DILITHIUM2"
+          - "DILITHIUM3"
+          - "DILITHIUM5"
+          # Falcon - Signatures
+          - "FALCON512"
+          - "FALCON1024"
+          # SPHINCS+ - Signatures
+          - "SPHINCS_SHA256"
+          - "SPHINCS_SHAKE256"
+          # Hybrid schemes (PQC + Classical)
+          - "ECDHE_KYBER"
+          - "X25519_KYBER768"
+          - "P256_KYBER512"
+          - "P384_KYBER768"
+        condition: or
+
+      - type: regex
+        part: cipher
+        regex:
+          - "(?i)(kyber|ntru|dilithium|falcon|sphincs|saber|mceliece)[0-9]*"
+          - "(?i)pqc[_-]"
+          - "(?i)post[_-]?quantum"
+        condition: or
+
+    extractors:
+      - type: regex
+        part: cipher
+        name: pqc_ciphers
+        group: 0
+        regex:
+          - "TLS_[A-Z0-9_]+(?:KYBER|NTRU|DILITHIUM|FALCON|SPHINCS|SABER|MCELIECE)[0-9]*"
+          - "[A-Z0-9_]*(?:KYBER|NTRU|DILITHIUM|FALCON|SPHINCS|SABER)[0-9]*[A-Z0-9_]*"
+
+      - type: json
+        part: response
+        name: all_cipher_info
+        json:
+          - '.cipher'
+          - '.cipher_suite'
+          - '.tls_version'
+
+      - type: kval
+        part: response
+        name: tls_details
+        kval:
+          - tls_version
+          - cipher
+          - subject_cn
+          - issuer_cn
+
+# Variables pour définir les ports communs à scanner
+variables:
+  Port: "443"
+
+# Exemples d'utilisation:
+# nuclei -t pqc-cipher-suites.yaml -u https://example.com
+# nuclei -t pqc-cipher-suites.yaml -l servers.txt
+# nuclei -t pqc-cipher-suites.yaml -u https://example.com:8443 -var Port=8443
